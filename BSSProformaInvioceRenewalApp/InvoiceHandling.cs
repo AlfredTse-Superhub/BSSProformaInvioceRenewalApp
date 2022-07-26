@@ -7,44 +7,46 @@ namespace BSSProformaInvioceRenewalApp
 {
     public static class InvoiceHandling
     {
-        private static Font titleFont = FontFactory.GetFont("Arial", 14.0f, BaseColor.DARK_GRAY);
-        private static Font contentFont = FontFactory.GetFont("Arial", 7.0f, BaseColor.DARK_GRAY);
-        private static Font contentBoldFont = FontFactory.GetFont("Arial", 7.0f, Font.BOLD, BaseColor.BLACK);
-        private static Font contentUnderlineFont = FontFactory.GetFont("Arial", 7.0f, Font.UNDERLINE, BaseColor.BLACK);
-        private static Font tableHeaderFont = FontFactory.GetFont("Arial", 7.0f, Font.BOLD, BaseColor.WHITE);
-        private static Font tableContentFont = FontFactory.GetFont("Arial", 7.0f, BaseColor.DARK_GRAY);
-        private static BaseColor themeColor = new(System.Drawing.ColorTranslator.FromHtml("#ed157c"));
-        private static BaseColor tableBorderColor = new(System.Drawing.ColorTranslator.FromHtml("#f0f0f0"));
-        private static float cellBorderWidth = 1.5f;
-        private static float cellHeaderPadding = 3;
-        private static float cellPadding = 3.5f;
+        private static readonly Font titleFont = FontFactory.GetFont("Arial", 14.0f, BaseColor.DARK_GRAY);
+        private static readonly Font contentFont = FontFactory.GetFont("Arial", 7.0f, BaseColor.DARK_GRAY);
+        private static readonly Font contentBoldFont = FontFactory.GetFont("Arial", 7.0f, Font.BOLD, BaseColor.BLACK);
+        private static readonly Font contentUnderlineFont = FontFactory.GetFont("Arial", 7.0f, Font.UNDERLINE, BaseColor.BLACK);
+        private static readonly Font tableHeaderFont = FontFactory.GetFont("Arial", 7.0f, Font.BOLD, BaseColor.WHITE);
+        private static readonly Font tableContentFont = FontFactory.GetFont("Arial", 7.0f, BaseColor.DARK_GRAY);
+        private static readonly BaseColor themeColor = new(System.Drawing.ColorTranslator.FromHtml("#ed157c"));
+        private static readonly BaseColor tableBorderColor = new(System.Drawing.ColorTranslator.FromHtml("#f0f0f0"));
+        private static readonly float cellBorderWidth = 1.5f;
+        private static readonly float cellHeaderPadding = 3;
+        private static readonly float cellPadding = 3.5f;
 
         public static void GeneratePDF(List<Subscription> subGroup, string invoiceID)
         {
             try
             {
                 string logoPath = Environment.CurrentDirectory + "/Images/logo.png";
-                string outPutDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().CodeBase);
-                Subscription firstSub = subGroup.FirstOrDefault();
+                string outPutDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Subscription firstSub = subGroup.First();
                 string contactName = (firstSub.BillToContact != null)
-                    ? firstSub.BillToContact?.FirstName + " " + firstSub.BillToContact.LastName
+                    ? firstSub.BillToContact?.FirstName + " " + firstSub.BillToContact?.LastName
                     : "N/A";
-                string billToTel = string.IsNullOrEmpty(firstSub.Customer.Phone)
-                    ? "N/A"
-                    : firstSub.Customer.Phone;
-                string billToEmail = string.IsNullOrEmpty(firstSub.Customer.BillToEmail)
-                    ? "N/A"
-                    : firstSub.Customer.BillToEmail;
+                string billToTel = firstSub.Customer.Phone ?? "N/A";
                 string billToName = firstSub.BillingTo.Name ?? "N/A";
-                string billToAddress = firstSub.Customer.Address ?? "";
+                string billToEmail = firstSub.Customer.BillToEmail ?? "N/A";
+                string billToAddress = firstSub.Customer.Address ?? "N/A";
                 string accountName = firstSub.Account.Name ?? "N/A";
+                string dueDate = DateTime.Now.AddDays(double.Parse(firstSub.Customer.PaymentMethod.Substring(4, 2))).ToString("yyyy-MM-dd");
                 decimal totalPrice = 0;
 
-                FileStream fs = new(Environment.CurrentDirectory + "/PDF/Prof_invoice_" + invoiceID + ".pdf", FileMode.Create, FileAccess.Write, FileShare.None);
+                FileStream fs = new(
+                    $"{Environment.CurrentDirectory}/PDF/{invoiceID.Replace("/", "-")}.pdf",
+                    FileMode.Create, 
+                    FileAccess.Write, 
+                    FileShare.None
+                );
                 // MemoryStream ms = new MemoryStream();
                 Document doc = new(PageSize.A4, 10f, 10f, 10f, 0f);
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
-                FontSelector selector = new FontSelector();
+                FontSelector selector = new();
                 selector.AddFont(FontFactory.GetFont(FontFactory.TIMES_ROMAN, 14));
                 selector.AddFont(FontFactory.GetFont("MSung-Light", "UniCNS-UCS2-H", BaseFont.NOT_EMBEDDED));
                 Image logo = iTextSharp.text.Image.GetInstance(logoPath);
@@ -54,11 +56,11 @@ namespace BSSProformaInvioceRenewalApp
                 doc.Open();
 
                 // Logo
-                Paragraph p1 = new Paragraph();
+                Paragraph p1 = new();
                 p1.Add(logo);
 
                 // Title
-                Paragraph p2 = new Paragraph();
+                Paragraph p2 = new();
                 p2.Font = titleFont;
                 p2.Add("INVOICE");
 
@@ -76,7 +78,7 @@ namespace BSSProformaInvioceRenewalApp
                 phrase2.Add(new Chunk("REF NUMBER \n", contentBoldFont));
                 phrase2.Add(new Chunk(invoiceID, contentFont));
                 phrase2.Add(new Chunk("\n\nDATE \n", contentBoldFont));
-                phrase2.Add(new Chunk(DateTime.Now.ToString("yyyy-MM-dd"), contentFont));
+                phrase2.Add(new Chunk(DateTime.Now.ToString("yyyy-MM-dd") + "\n(yyyy-MM-dd)", contentFont));
                 phrase2.Add(new Chunk("\n\nCUSTOMER REF \n", contentBoldFont));
                 phrase2.Add(new Chunk(accountName, contentFont));
                 Phrase phrase3 = new Phrase();
@@ -101,13 +103,15 @@ namespace BSSProformaInvioceRenewalApp
                 string[] p5Headers = { "ITEM", "DESCRIPTION", "QTY", "UNIT", "BILLING PERIOD", "UNIT PRICE HK$", "AMOUNT HK$" };
                 foreach (string header in p5Headers)
                 {
-                    PdfPCell pdfPCell = new(new Phrase(header, tableHeaderFont));
-                    pdfPCell.BackgroundColor = themeColor;
-                    pdfPCell.BorderColor = tableBorderColor;
-                    pdfPCell.BorderWidth = cellBorderWidth;
-                    pdfPCell.Padding = cellHeaderPadding;
-                    pdfPCell.HorizontalAlignment = Element.ALIGN_RIGHT;
-                    pdfPCell.VerticalAlignment = Element.ALIGN_CENTER;
+                    PdfPCell pdfPCell = new(new Phrase(header, tableHeaderFont))
+                    {
+                        BackgroundColor = themeColor,
+                        BorderColor = tableBorderColor,
+                        BorderWidth = cellBorderWidth,
+                        Padding = cellHeaderPadding,
+                        HorizontalAlignment = Element.ALIGN_RIGHT,
+                        VerticalAlignment = Element.ALIGN_CENTER,
+                    };
                     if (header == "ITEM")
                     {
                         pdfPCell.HorizontalAlignment = Element.ALIGN_CENTER;
@@ -143,7 +147,6 @@ namespace BSSProformaInvioceRenewalApp
                     p5TblContent.AddCell(cell2);
                     p5TblContent.AddCell(new Phrase(item.Quantity, tableContentFont));
                     p5TblContent.AddCell(new Phrase(item.Unit.Name, tableContentFont));
-                    // p5TblContent.AddCell(new Phrase(item.EndDate.Substring(0, 10), tableContentFont));
                     p5TblContent.AddCell(new Phrase(billingStartDate + " - " + billingEndDate, tableContentFont));
                     p5TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", decimal.Parse(item.Product.FinalUnitPrice)), tableContentFont));
                     p5TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", itemTotal), tableContentFont));
@@ -162,7 +165,7 @@ namespace BSSProformaInvioceRenewalApp
                             addonCell1.VerticalAlignment = addonCell2.VerticalAlignment = Element.ALIGN_CENTER;
                             addonCell1.HorizontalAlignment = Element.ALIGN_CENTER;
                             addonCell2.HorizontalAlignment = Element.ALIGN_LEFT;
-                            p5TblContent.AddCell(addonCell1);
+                            p5TblContent.AddCell(new Phrase(ItemNo.ToString(), tableContentFont));
                             p5TblContent.AddCell(addonCell2);
                             p5TblContent.AddCell(new Phrase(((int)double.Parse(addon.Quantity)).ToString(), tableContentFont));
                             p5TblContent.AddCell(new Phrase(addon.PriceInfo.Unit.Name, tableContentFont));
@@ -178,30 +181,34 @@ namespace BSSProformaInvioceRenewalApp
 
                 // Total Expense Table
                 Paragraph p6 = new();
-                PdfPTable p6TblHeader = new(2);
-                int[] p6TableWidth = { 63, 27 };
-                p6TblHeader.WidthPercentage = 50;
+                PdfPTable p6TblHeader = new(3);
+                int[] p6TableWidth = { 40, 25, 25 };
+                p6TblHeader.WidthPercentage = 60;
                 p6TblHeader.SetWidths(p6TableWidth);
                 p6TblHeader.HorizontalAlignment = Element.ALIGN_LEFT;
-                string[] p6tableHeaders = { "Payable Items", "Amount" };
+                string[] p6tableHeaders = { "Payable Items", "Due Date", "Amount" };
                 foreach (string header in p6tableHeaders)
                 {
-                    PdfPCell pdfPCell = new(new Phrase(header, tableHeaderFont));
-                    pdfPCell.HorizontalAlignment = Element.ALIGN_LEFT;
-                    pdfPCell.BackgroundColor = themeColor;
-                    pdfPCell.BorderColor = tableBorderColor;
-                    pdfPCell.BorderWidth = cellBorderWidth;
-                    pdfPCell.Padding = cellHeaderPadding;
+                    PdfPCell pdfPCell = new(new Phrase(header, tableHeaderFont))
+                    {
+                        HorizontalAlignment = Element.ALIGN_LEFT,
+                        BackgroundColor = themeColor,
+                        BorderColor = tableBorderColor,
+                        BorderWidth = cellBorderWidth,
+                        Padding = cellHeaderPadding
+                    };
                     if (header == "Payable Items")
                     {
                         pdfPCell.HorizontalAlignment = Element.ALIGN_CENTER;
                     }
                     p6TblHeader.AddCell(pdfPCell);
                 }
-                PdfPTable p6TblContent = new(2);
-                p6TblContent.WidthPercentage = 50;
+                PdfPTable p6TblContent = new(3)
+                {
+                    WidthPercentage = 60,
+                    HorizontalAlignment = Element.ALIGN_LEFT
+                };
                 p6TblContent.SetWidths(p6TableWidth);
-                p6TblContent.HorizontalAlignment = Element.ALIGN_LEFT;
                 p6TblContent.DefaultCell.BorderColor = tableBorderColor;
                 p6TblContent.DefaultCell.BorderWidth = cellBorderWidth;
                 p6TblContent.DefaultCell.Padding = cellPadding;
@@ -211,6 +218,7 @@ namespace BSSProformaInvioceRenewalApp
                 p6ContentCell.BorderWidth = cellBorderWidth;
                 p6ContentCell.Padding = cellPadding;
                 p6TblContent.AddCell(p6ContentCell);
+                p6TblContent.AddCell(new Phrase(dueDate, tableContentFont));
                 p6TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", totalPrice), tableContentFont));
                 p6.Add(p6TblHeader);
                 p6.Add(p6TblContent);
@@ -226,10 +234,9 @@ namespace BSSProformaInvioceRenewalApp
                 p8.SetLeading(0f, 2f);
                 p8.Add(
                     "1. No signature is required for this computer printout."
-                    + "\n2. Disputes concerning any charges must be raised within 7 days of the invoice date."
-                    + "\n3. Interest of 3% per month will be charged on overdue accounts from the date of which payment was due to the date of actual\n    payment at a daily interest rate basis."
-                    + "\n4. Payable amount is the Balance Due amount stated on the invoice at the time interval specify on the invoice"
-                    + "\n5. Payment should be made payable to \"SuperHub Ltd.\" or deposit to our bank accounts below."
+                    + "\n2. Interest of 3% per month will be charged on overdue accounts from the date of which payment was due to the date of actual\n    payment at a daily interest rate basis."
+                    + "\n3. Payable amount is the Balance Due amount stated on the invoice at the time interval specify on the invoice"
+                    + "\n4. Payment should be made payable to \"SuperHub Ltd.\" or deposit to our bank accounts below."
                     + "\n        Bank Name: HSBC Bank                           Name: Hang Seng Bank"
                     + "\n        Bank Code: 004                                         Bank Code: 024"
                     + "\n        Bank Account #: 191‐346477‐001                 Bank Account #: 294‐230875‐001"
@@ -239,15 +246,14 @@ namespace BSSProformaInvioceRenewalApp
                 p8.Add(new Chunk("cs@superhub.com.hk", contentUnderlineFont));
                 p8.Add(
                     " with invoice number on the payment receipt reference."
-                    + "\n6. Credit card and autopay payment will be billed 2 working days before the due date."
-                    + "\n7. Deposit payment will be refunded, if qualified and after settlement of all outstanding payment, within 1 month after accepted\n    termination of service."
-                    + "\n8. Our marketplace "
+                    + "\n5. Credit card and autopay payment will be billed 2 working days before the due date."
+                    + "\n6. Deposit payment will be refunded, if qualified and after settlement of all outstanding payment, within 1 month after accepted\n    termination of service."
+                    + "\n7. Our marketplace "
                 );
                 p8.Add(new Chunk("\"store.superhub.com.hk\"", contentUnderlineFont));
                 p8.Add(
                     " enables retrieving billing history and details. Customers shall take invoice sent to\n    their registered account as official document to arrange payment before due date."
-                    + "\n9. Service suspension may be executed for overdue payment remains unsettled over 30 days and we will be disclaimed and not\n    liable for any loss due to such service suspension."
-                    + "\n10. Please pay within 5 working days."
+                    + "\n8. Service suspension may be executed for overdue payment remains unsettled over 30 days and we will be disclaimed and not\n    liable for any loss due to such service suspension."
                 );
 
                 doc.Add(p1);

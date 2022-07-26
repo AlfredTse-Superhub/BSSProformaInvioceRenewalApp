@@ -1,7 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
 using BSSProformaInvioceRenewalApp.Models;
-using CSharpVitamins;
 using GraphServiceClient = Microsoft.Graph.GraphServiceClient;
 
 namespace BSSProformaInvioceRenewalApp
@@ -24,7 +23,6 @@ namespace BSSProformaInvioceRenewalApp
                     Console.WriteLine("Please input subscription ID, use spacing for multiple IDs:id1 id2 id3.\n");
                     string? subscriptionIDInput = Console.ReadLine();
                     Console.WriteLine();
-
                     if (string.IsNullOrWhiteSpace(subscriptionIDInput))
                     {
                         throw new Exception("Warning: Empty inputs!");
@@ -33,31 +31,53 @@ namespace BSSProformaInvioceRenewalApp
                         .Split()
                         .Where(s => s != string.Empty);
 
+                    // Valiadate subscriptions
                     List<Subscription> subscriptionList = await SubscriptionHandling.FetchSubscriptions(subscriptionIDList.Distinct());
                     bool isValid = SubscriptionHandling.ValidateSubscriptions(subscriptionList);
-
                     if (!isValid)
                     {
                         throw new Exception("Error: Invalid inputs!");
                     }
 
+                    // Check invoiceID duplication, generate PDF and log to SP
                     Console.WriteLine("\nGenerating PDF...");
-                    string invoiceID = ShortGuid.NewGuid().ToString();
-                    InvoiceHandling.GeneratePDF(subscriptionList, invoiceID);
-
-                    Console.WriteLine("Logging to SharePoint...");
                     GraphServiceClient graphClient = GraphClientHelper.GetGraphClient();
-                    await SharePointHandling.CreateInvoiceLog(graphClient, subscriptionList, invoiceID);
+                    int maxRetry = 5;
+                    int count = 0;
+                    do
+                    {
+                        try
+                        {
+                            count++;
+                            string invoiceDigits = await SharePointHandling.GetNextInvoiceDigits(graphClient);
+                            string invoiceID = string.Concat("INV/M/", DateTime.Now.Year.ToString().AsSpan(2), invoiceDigits);
+                            await SharePointHandling.CreateInvoiceLog(graphClient, invoiceID, invoiceDigits);
+                            await SharePointHandling.CreateSubscriptionLog(graphClient, subscriptionList, invoiceID);
+                            InvoiceHandling.GeneratePDF(subscriptionList, invoiceID);
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                            if (count == maxRetry)
+                            {
+                                throw new Exception("Error: Action failed, please try again or contact developer for help.");
+                            }
+                            continue;
+                        }
+                    }
+                    while(count < maxRetry);
 
                     Console.WriteLine($"Completed! The file is saved in the PDF folder \n\n\n");
 
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message + "\n\n\n");
+                    Console.WriteLine("\n"+ ex.Message + "\n\n\n");
                     continue;
                 }
-            } while (true);
+            } 
+            while (true);
         }
     }
 }

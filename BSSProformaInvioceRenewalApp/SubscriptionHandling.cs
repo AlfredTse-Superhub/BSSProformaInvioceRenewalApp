@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using RestSharp;
 using RestSharp.Authenticators;
+using System.Net.Security;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace BSSProformaInvioceRenewalApp
@@ -22,27 +23,25 @@ namespace BSSProformaInvioceRenewalApp
 
         private static async Task<string> GetOAuthToken()
         {
-            string token = "";
-            string url = _appConfig.OAuthTokenUrl;
-            string clientId = _appConfig.ClientId;
-            string clientSecret = _appConfig.ClientSecret;
-            string username = _appConfig.BSSUsername;
-            string password = _appConfig.BSSPassword;
+            string? url = _appConfig.OAuthTokenUrl;
+            string? clientId = _appConfig.ClientId;
+            string? clientSecret = _appConfig.ClientSecret;
+            string? username = _appConfig.BSSUsername;
+            string? password = _appConfig.BSSPassword;
 
             RestClient client = new(url);
             client.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
             client.Authenticator = new HttpBasicAuthenticator(clientId, clientSecret);
 
-            RestRequest request = new(Method.POST);
-            request.AddParameter("grant_type=password&username=" + username + "& password=" + password, ParameterType.RequestBody);
-            request.AddHeader("content-type", "application/x-www-form-urlencoded");
-            request.AddHeader("Authorization", "basic " + client.Authenticator.ToString());
-            request.AddParameter("application/x-www-form-urlencoded", "grant_type=password&username=" + username + "&password=" + password, ParameterType.RequestBody);
+            IRestRequest request = new RestRequest(Method.POST)
+                .AddHeader("content-type", "application/x-www-form-urlencoded")
+                .AddHeader("Authorization", "basic " + client.Authenticator.ToString())
+                .AddParameter("application/x-www-form-urlencoded", ($"grant_type=password&username={username}&password={password}"), ParameterType.RequestBody);
 
             IRestResponse response = await client.ExecuteAsync(request);
 
-            OAuthToken oAuthToken = JsonSerializer.Deserialize<OAuthToken>(response.Content);
-            token = oAuthToken.TokenType + " " + oAuthToken.AccessToken;
+            OAuthToken? oAuthToken = JsonSerializer.Deserialize<OAuthToken>(response.Content);
+            string token = oAuthToken!.TokenType + " " + oAuthToken.AccessToken;
             if (string.IsNullOrEmpty(token.Trim()))
             {
                 throw new Exception("Authentication Failed: Empty token!");
@@ -54,7 +53,8 @@ namespace BSSProformaInvioceRenewalApp
         {
             bool isAllValid = true;
             string firstCustomer = subscriptionList[0].Account.Name;
-            var count = 1;
+            int count = 1;
+
             foreach (var sub in subscriptionList)
             {
                 if (sub == null || firstCustomer != sub.Account.Name)
@@ -73,6 +73,7 @@ namespace BSSProformaInvioceRenewalApp
             {
                 string token = await GetOAuthToken();
                 List<Subscription> subscriptionList = new();
+
                 foreach (string subscriptionID in subscriptionIDList)
                 {
                     Subscription sub = GetSubscription(token, subscriptionID);
@@ -82,20 +83,14 @@ namespace BSSProformaInvioceRenewalApp
                     if (account != null)
                     {
                         sub.Account.Id = account.Id;
+                        sub.Customer.PaymentMethod = account.PaymentMethod;
                         if (account.Addresses.Count() > 0)
                         {
                             Address firstAddress = account.Addresses[0];
-                            sub.Customer.Address = firstAddress.Address1 ?? " " + " " + firstAddress.Address2 ?? " ";
-                            sub.Customer.City = firstAddress.City ?? " ";
-                            sub.Customer.Country = firstAddress.Country ?? " ";
-                            sub.Customer.Phone = account.Phone ?? " ";
-                        }
-                        else
-                        {
-                            sub.Customer.Address = " ";
-                            sub.Customer.City = " ";
-                            sub.Customer.Country = " ";
-                            sub.Customer.Phone = " ";
+                            sub.Customer.Address = (firstAddress.Address1 ?? "") + " " + (firstAddress.Address2 ?? "");
+                            sub.Customer.City = firstAddress.City;
+                            sub.Customer.Country = firstAddress.Country;
+                            sub.Customer.Phone = account.Phone;
                         }
                     }
                     if (sub.Account.Id != sub.BillingTo.Id)
@@ -104,8 +99,8 @@ namespace BSSProformaInvioceRenewalApp
                     }
                     if (account != null)
                     {
-                        sub.Customer.BillToEmail = account.Email ?? " ";
-                        sub.Customer.BillToContact = account.Name ?? " ";
+                        sub.Customer.BillToEmail = account.Email;
+                        sub.Customer.BillToContact = account.Name;
                     }
 
                     PricingInfo pricingInfo = GetPricingInfo(token, sub.Id);
@@ -117,7 +112,6 @@ namespace BSSProformaInvioceRenewalApp
             }
             catch (Exception ex)
             {
-                // Console.WriteLine(ex.Message);
                 throw new Exception("Error: subscription(s) not recognized");
             }
         }
@@ -139,7 +133,7 @@ namespace BSSProformaInvioceRenewalApp
         private static Subscription GetSubscription(string token, string id)
         {
             string url = _appConfig.APIUrl + $"/Subscriptions/{id}";
-            RestClient client = new(url);
+            RestClient client = new RestClient(url);
             client.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
             RestRequest request = CreateGetRequest(token);
             request.AddQueryParameter("status", "active");
@@ -148,7 +142,6 @@ namespace BSSProformaInvioceRenewalApp
 
             IRestResponse response = client.Execute(request);
             Subscription result = JsonConvert.DeserializeObject<Subscription>(response.Content);
-
             return result;
         }
 
@@ -177,7 +170,6 @@ namespace BSSProformaInvioceRenewalApp
 
             IRestResponse response = client.Execute(request);
             PricingInfo result = JsonConvert.DeserializeObject<PricingInfo>(response.Content);
-
             return result;
         }
 
@@ -189,9 +181,8 @@ namespace BSSProformaInvioceRenewalApp
             RestRequest request = CreateGetRequest(token, "2.2");
 
             IRestResponse response = client.Execute(request);
-            Account APIresponse = JsonConvert.DeserializeObject<Account>(response.Content);
-
-            return APIresponse;
+            Account result = JsonConvert.DeserializeObject<Account>(response.Content);
+            return result;
         }
 
         private static PricingInfo GetPricingInfo(string token, string id)
@@ -202,9 +193,8 @@ namespace BSSProformaInvioceRenewalApp
             RestRequest request = CreateGetRequest(token);
 
             IRestResponse response = client.Execute(request);
-            PricingInfo APIresponse = JsonConvert.DeserializeObject<PricingInfo>(response.Content);
-
-            return APIresponse;
+            PricingInfo result = JsonConvert.DeserializeObject<PricingInfo>(response.Content);
+            return result;
         }
     }
 }

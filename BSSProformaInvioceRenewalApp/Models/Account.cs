@@ -18,6 +18,9 @@ namespace BSSProformaInvioceRenewalApp.Models
 
         [JsonPropertyNameAttribute("email")]
         public string Email { get; set; }
+
+        [JsonPropertyNameAttribute("paymentMethod")]
+        public string PaymentMethod { get; set; }
     }
 
     public class Address
