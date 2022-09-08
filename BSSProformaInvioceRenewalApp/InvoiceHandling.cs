@@ -34,7 +34,11 @@ namespace BSSProformaInvioceRenewalApp
                 string billToEmail = firstSub.Customer.BillToEmail ?? "N/A";
                 string billToAddress = firstSub.Customer.Address ?? "N/A";
                 string accountName = firstSub.Account.Name ?? "N/A";
-                string dueDate = DateTime.Now.AddDays(double.Parse(firstSub.Customer.PaymentMethod.Substring(4, 2))).ToString("yyyy-MM-dd");
+                /// !TryParse
+                //string dueDate = String.IsNullOrWhiteSpace(firstSub.Customer.PaymentMethod) 
+                //    ? DateTime.Now.ToString("yyyy-MM-dd")
+                //    : DateTime.Now.AddDays(double.Parse(firstSub.Customer.PaymentMethod.Substring(4, 2))).ToString("yyyy-MM-dd");
+                string dueDate = DateTime.Now.AddDays(30).ToString("yyyy-MM-dd");
                 decimal totalPrice = 0;
 
                 FileStream fs = new(
@@ -135,7 +139,7 @@ namespace BSSProformaInvioceRenewalApp
                 {
                     string billingStartDate = DateTime.Parse(item.EndDate.Substring(0, 10)).AddDays(1).ToString("yyyy-MM-dd");
                     string billingEndDate = DateTime.Parse(item.EndDate.Substring(0, 10)).AddYears(1).ToString("yyyy-MM-dd");
-                    var itemTotal = decimal.Parse(item.Quantity) * decimal.Parse(item.Product.FinalUnitPrice);
+                    decimal itemTotal = decimal.Parse(item.Quantity) * decimal.Parse(item.Product.FinalUnitPrice);
                     PdfPCell cell1 = new(new Phrase(ItemNo.ToString(), tableContentFont));
                     PdfPCell cell2 = new(new Phrase(item.Name, tableContentFont));
                     cell1.BorderColor = cell2.BorderColor = tableBorderColor;
@@ -165,11 +169,11 @@ namespace BSSProformaInvioceRenewalApp
                             addonCell1.VerticalAlignment = addonCell2.VerticalAlignment = Element.ALIGN_CENTER;
                             addonCell1.HorizontalAlignment = Element.ALIGN_CENTER;
                             addonCell2.HorizontalAlignment = Element.ALIGN_LEFT;
-                            p5TblContent.AddCell(new Phrase(ItemNo.ToString(), tableContentFont));
+                            p5TblContent.AddCell(addonCell1);
                             p5TblContent.AddCell(addonCell2);
                             p5TblContent.AddCell(new Phrase(((int)double.Parse(addon.Quantity)).ToString(), tableContentFont));
                             p5TblContent.AddCell(new Phrase(addon.PriceInfo.Unit.Name, tableContentFont));
-                            p5TblContent.AddCell(new Phrase(item.EndDate.Substring(0, 10), tableContentFont));
+                            p5TblContent.AddCell(new Phrase(billingStartDate + " - " + billingEndDate, tableContentFont));
                             p5TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", decimal.Parse(addon.PriceInfo.UnitPrice.Value)), tableContentFont));
                             p5TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", addonTotal), tableContentFont));
                             totalPrice += addonTotal;
@@ -181,43 +185,32 @@ namespace BSSProformaInvioceRenewalApp
 
                 // Total Expense Table
                 Paragraph p6 = new();
-                PdfPTable p6TblHeader = new(3);
-                int[] p6TableWidth = { 40, 25, 25 };
-                p6TblHeader.WidthPercentage = 60;
+                PdfPTable p6TblHeader = new(2);
+                int[] p6TableWidth = { 50, 40 };
+                p6TblHeader.WidthPercentage = 50;
                 p6TblHeader.SetWidths(p6TableWidth);
                 p6TblHeader.HorizontalAlignment = Element.ALIGN_LEFT;
-                string[] p6tableHeaders = { "Payable Items", "Due Date", "Amount" };
+                string[] p6tableHeaders = { "DUE DATE", "TOTAL AMOUNT HK$" };
                 foreach (string header in p6tableHeaders)
                 {
                     PdfPCell pdfPCell = new(new Phrase(header, tableHeaderFont))
                     {
-                        HorizontalAlignment = Element.ALIGN_LEFT,
+                        HorizontalAlignment = Element.ALIGN_CENTER,
                         BackgroundColor = themeColor,
                         BorderColor = tableBorderColor,
                         BorderWidth = cellBorderWidth,
                         Padding = cellHeaderPadding
                     };
-                    if (header == "Payable Items")
-                    {
-                        pdfPCell.HorizontalAlignment = Element.ALIGN_CENTER;
-                    }
                     p6TblHeader.AddCell(pdfPCell);
                 }
-                PdfPTable p6TblContent = new(3)
-                {
-                    WidthPercentage = 60,
-                    HorizontalAlignment = Element.ALIGN_LEFT
-                };
+                PdfPTable p6TblContent = new(2);
                 p6TblContent.SetWidths(p6TableWidth);
+                p6TblContent.WidthPercentage = 50;
+                p6TblContent.HorizontalAlignment = Element.ALIGN_LEFT;
                 p6TblContent.DefaultCell.BorderColor = tableBorderColor;
                 p6TblContent.DefaultCell.BorderWidth = cellBorderWidth;
                 p6TblContent.DefaultCell.Padding = cellPadding;
-                PdfPCell p6ContentCell = new(new Phrase("Total:", tableContentFont));
-                p6ContentCell.HorizontalAlignment = Element.ALIGN_CENTER;
-                p6ContentCell.BorderColor = tableBorderColor;
-                p6ContentCell.BorderWidth = cellBorderWidth;
-                p6ContentCell.Padding = cellPadding;
-                p6TblContent.AddCell(p6ContentCell);
+                p6TblContent.DefaultCell.HorizontalAlignment = Element.ALIGN_CENTER;
                 p6TblContent.AddCell(new Phrase(dueDate, tableContentFont));
                 p6TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", totalPrice), tableContentFont));
                 p6.Add(p6TblHeader);

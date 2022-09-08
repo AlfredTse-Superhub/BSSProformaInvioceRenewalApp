@@ -1,7 +1,5 @@
 ﻿using BSSProformaInvioceRenewalApp.Models;
 using Microsoft.Graph;
-// using Microsoft.SharePoint.Client;
-// using Microsoft.SharePoint.Client;
 
 namespace BSSProformaInvioceRenewalApp
 {

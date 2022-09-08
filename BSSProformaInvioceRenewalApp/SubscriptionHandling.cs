@@ -72,6 +72,7 @@ namespace BSSProformaInvioceRenewalApp
             try
             {
                 string token = await GetOAuthToken();
+                // GetSubscriptionTest(token, 140); //test
                 List<Subscription> subscriptionList = new();
 
                 foreach (string subscriptionID in subscriptionIDList)
@@ -83,7 +84,7 @@ namespace BSSProformaInvioceRenewalApp
                     if (account != null)
                     {
                         sub.Account.Id = account.Id;
-                        sub.Customer.PaymentMethod = account.PaymentMethod;
+                        sub.Customer.PaymentMethod = account.PaymentMethod ?? "";
                         if (account.Addresses.Count() > 0)
                         {
                             Address firstAddress = account.Addresses[0];
@@ -145,6 +146,23 @@ namespace BSSProformaInvioceRenewalApp
             return result;
         }
 
+        // testing
+        //private static Subscription GetSubscriptionTest(string token, int accountId)
+        //{
+        //    // string url = _appConfig.APIUrl + $"/Accounts/{accountId}/subscriptions/73823ef4-d420-4627-8889-2dd6a3a46dc9";
+        //    string url = _appConfig.APIUrl + $"/Accounts/{accountId}/subscriptions";
+        //    RestClient client = new RestClient(url);
+        //    client.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
+        //    RestRequest request = CreateGetRequest(token, "2.2");
+        //    //request.AddQueryParameter("status", "active");
+        //    //request.AddQueryParameter("accountId", "0");
+        //    //request.AddQueryParameter("size", "25");
+
+        //    IRestResponse response = client.Execute(request);
+        //    Subscription result = JsonConvert.DeserializeObject<Subscription>(response.Content);
+        //    return result;
+        //}
+
         private static List<Addons> GetSubscriptionAddons(string token, string id)
         {
             string url = _appConfig.APIUrl + $"/Subscriptions/{id}/addons";
@@ -156,7 +174,7 @@ namespace BSSProformaInvioceRenewalApp
             List<Addons> result = JsonConvert.DeserializeObject<List<Addons>>(response.Content);
             if (result != null)
             {
-                result.FindAll(x => x.Status == "Active");
+                result = result.FindAll(x => x.Status == "Active");
             }
             return result;
         }
