@@ -20,5 +20,6 @@
         public string? SiteId { get; set; }
         public string? ListId { get; set; }
         public string? InvoiceListId { get; set; }
+        public string? InputExcelName { get; set; }
     }
 }

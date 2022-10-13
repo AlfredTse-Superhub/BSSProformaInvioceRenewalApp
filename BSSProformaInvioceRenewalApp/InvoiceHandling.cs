@@ -19,12 +19,67 @@ namespace BSSProformaInvioceRenewalApp
         private static readonly float cellHeaderPadding = 3;
         private static readonly float cellPadding = 3.5f;
 
+        private static DateTime GetNewBillingEndDate(DateTime prevEndDate, string billingPeriod)
+        {
+            DateTime newEndDate;
+            switch (billingPeriod)
+            {
+                case "Monthly":
+                    newEndDate = prevEndDate.AddMonths(1);
+                    break;
+                case "Quarterly":
+                    newEndDate = prevEndDate.AddMonths(3);
+                    break;
+                case "Semi-Annually":
+                    newEndDate = prevEndDate.AddMonths(6);
+                    break;
+                case "8 Months":
+                    newEndDate = prevEndDate.AddMonths(8);
+                    break;
+                case "10 Months":
+                    newEndDate = prevEndDate.AddMonths(10);
+                    break;
+                case "14 Months":
+                    newEndDate = prevEndDate.AddMonths(14);
+                    break;
+                case "18 Months":
+                    newEndDate = prevEndDate.AddMonths(18);
+                    break;
+                case "Annually":
+                    newEndDate = prevEndDate.AddYears(1);
+                    break;
+                case "2 Years":
+                    newEndDate = prevEndDate.AddYears(2);
+                    break;
+                case "3 Years":
+                    newEndDate = prevEndDate.AddYears(3);
+                    break;
+                case "4 Years":
+                    newEndDate = prevEndDate.AddYears(4);
+                    break;
+                case "5 Years":
+                    newEndDate = prevEndDate.AddYears(5);
+                    break;
+                case "6 Years":
+                    newEndDate = prevEndDate.AddYears(6);
+                    break;
+                case "9 Years":
+                    newEndDate = prevEndDate.AddYears(9);
+                    break;
+
+                default:
+                    newEndDate = prevEndDate.AddYears(1);
+                    break;
+            }
+
+            return newEndDate;
+        }
+
         public static void GeneratePDF(List<Subscription> subGroup, string invoiceID)
         {
             try
             {
-                string logoPath = Environment.CurrentDirectory + "/Images/logo.png";
-                string outPutDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string logoPath = Environment.CurrentDirectory + "/Images/logo.png"; //string outPutDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 Subscription firstSub = subGroup.First();
                 string contactName = (firstSub.BillToContact != null)
                     ? firstSub.BillToContact?.FirstName + " " + firstSub.BillToContact?.LastName
@@ -41,13 +96,13 @@ namespace BSSProformaInvioceRenewalApp
                 string dueDate = DateTime.Now.AddDays(30).ToString("yyyy-MM-dd");
                 decimal totalPrice = 0;
 
+                // Create new file
                 FileStream fs = new(
                     $"{Environment.CurrentDirectory}/PDF/{invoiceID.Replace("/", "-")}.pdf",
                     FileMode.Create, 
                     FileAccess.Write, 
                     FileShare.None
                 );
-                // MemoryStream ms = new MemoryStream();
                 Document doc = new(PageSize.A4, 10f, 10f, 10f, 0f);
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                 FontSelector selector = new();
@@ -135,10 +190,11 @@ namespace BSSProformaInvioceRenewalApp
                 p5TblContent.DefaultCell.HorizontalAlignment = Element.ALIGN_RIGHT;
                 p5TblContent.DefaultCell.VerticalAlignment = Element.ALIGN_CENTER;
                 var ItemNo = 1;
-                foreach (var item in subGroup)
+                foreach (Subscription item in subGroup)
                 {
-                    string billingStartDate = DateTime.Parse(item.EndDate.Substring(0, 10)).AddDays(1).ToString("yyyy-MM-dd");
-                    string billingEndDate = DateTime.Parse(item.EndDate.Substring(0, 10)).AddYears(1).ToString("yyyy-MM-dd");
+                    DateTime billingStartDate = DateTime.Parse(item.EndDate.Substring(0, 10)).AddDays(1);
+                    DateTime billingEndDate = GetNewBillingEndDate(DateTime.Parse(item.EndDate.Substring(0, 10)), item.Unit.Name);
+
                     decimal itemTotal = decimal.Parse(item.Quantity) * decimal.Parse(item.Product.FinalUnitPrice);
                     PdfPCell cell1 = new(new Phrase(ItemNo.ToString(), tableContentFont));
                     PdfPCell cell2 = new(new Phrase(item.Name, tableContentFont));
@@ -151,7 +207,7 @@ namespace BSSProformaInvioceRenewalApp
                     p5TblContent.AddCell(cell2);
                     p5TblContent.AddCell(new Phrase(item.Quantity, tableContentFont));
                     p5TblContent.AddCell(new Phrase(item.Unit.Name, tableContentFont));
-                    p5TblContent.AddCell(new Phrase(billingStartDate + " - " + billingEndDate, tableContentFont));
+                    p5TblContent.AddCell(new Phrase(billingStartDate.ToString("yyyy-MM-dd") + " - " + billingEndDate.ToString("yyyy-MM-dd"), tableContentFont));
                     p5TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", decimal.Parse(item.Product.FinalUnitPrice)), tableContentFont));
                     p5TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", itemTotal), tableContentFont));
                     ItemNo += 1;
@@ -173,7 +229,7 @@ namespace BSSProformaInvioceRenewalApp
                             p5TblContent.AddCell(addonCell2);
                             p5TblContent.AddCell(new Phrase(((int)double.Parse(addon.Quantity)).ToString(), tableContentFont));
                             p5TblContent.AddCell(new Phrase(addon.PriceInfo.Unit.Name, tableContentFont));
-                            p5TblContent.AddCell(new Phrase(billingStartDate + " - " + billingEndDate, tableContentFont));
+                            p5TblContent.AddCell(new Phrase(billingStartDate.ToString("yyyy-MM-dd") + " - " + billingEndDate.ToString("yyyy-MM-dd"), tableContentFont));
                             p5TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", decimal.Parse(addon.PriceInfo.UnitPrice.Value)), tableContentFont));
                             p5TblContent.AddCell(new Phrase("$" + String.Format("{0:0.00}", addonTotal), tableContentFont));
                             totalPrice += addonTotal;

@@ -10,29 +10,42 @@ namespace BSSProformaInvioceRenewalApp
         static async Task Main()
         {
             Console.WriteLine("\n =========================================================================================");
-            Console.WriteLine(" |  You are using BSS Proforma Invoice console application V1.0!                          |");
+            Console.WriteLine(" |  You are using BSS Proforma Invoice console application V2.0!                          |");
             Console.WriteLine(" |----------------------------------------------------------------------------------------|");
             Console.WriteLine(" |  Step1:  |  Enter 1 or more subscription ID from the same customer.                    |");
             Console.WriteLine(" |  Step2:  |  A pdf copy of invoice will be saved in the directory of this app.          |");
+            Console.WriteLine(" |----------------------------------------------------------------------------------------|");
+            Console.WriteLine(" |  New:    |  Enter 'run excel' to generate invoice pdf(s) from excel data.              |");
             Console.WriteLine(" =========================================================================================\n");
 
             do
             {
                 try
                 {
-                    Console.WriteLine("Please input subscription ID, use spacing for multiple IDs:id1 id2 id3.\n");
-                    string? subscriptionIDInput = Console.ReadLine();
+                    Console.WriteLine("Please input subscription ID/other commands, use spacing for multiple IDs (id1 id2 id3).\n");
+                    string? userInput = Console.ReadLine();
                     Console.WriteLine();
-                    if (string.IsNullOrWhiteSpace(subscriptionIDInput))
+                    if (string.IsNullOrWhiteSpace(userInput))
                     {
                         throw new Exception("Warning: Empty inputs!");
                     }
-                    IEnumerable<string> subscriptionIDList = subscriptionIDInput
-                        .Split()
-                        .Where(s => s != string.Empty);
+
+                    // Handle userInput
+                    List<Subscription> subscriptionList = new();
+                    if (userInput.ToLower().Trim() == "run excel")
+                    {
+                        subscriptionList = await SubscriptionHandling.FetchSubscriptionsFromExcel();
+                    }
+                    else
+                    {
+                        IEnumerable<string> subscriptionIDList = userInput
+                            .Split()
+                            .Where(s => s != string.Empty);
+
+                        subscriptionList = await SubscriptionHandling.FetchSubscriptions(subscriptionIDList.Distinct());
+                    }
 
                     // Valiadate subscriptions
-                    List<Subscription> subscriptionList = await SubscriptionHandling.FetchSubscriptions(subscriptionIDList.Distinct());
                     bool isValid = SubscriptionHandling.ValidateSubscriptions(subscriptionList);
                     if (!isValid)
                     {

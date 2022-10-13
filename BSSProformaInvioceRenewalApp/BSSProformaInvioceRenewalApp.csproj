@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.6.0" />
     <PackageReference Include="CSharpVitamins.ShortGuid" Version="2.0.0" />
+    <PackageReference Include="ExcelDataReader" Version="3.6.0" />
     <PackageReference Include="iTextSharp" Version="5.5.13.3" />
     <PackageReference Include="Microsoft.Azure.WebJobs" Version="3.0.33" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.1" />
@@ -21,6 +22,7 @@
     <PackageReference Include="Microsoft.SharePoint.Client" Version="14.0.4762.1000" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="RestSharp" Version="106.15.0" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
